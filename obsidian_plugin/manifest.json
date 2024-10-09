@@ -1,0 +1,11 @@
+{
+	"id": "oraculon",
+	"name": "Oraculon",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "This is an Obsidian plugin for Oraculon, a worldbuilding toolkit for Dungeons & Dragons.",
+	"author": "Jackson Waschura",
+	"authorUrl": "https://jackson-waschura.github.io/about/",
+	"fundingUrl": "",
+	"isDesktopOnly": false
+}
