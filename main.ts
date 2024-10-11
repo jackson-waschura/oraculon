@@ -2,6 +2,15 @@ import { App, Plugin, PluginSettingTab, Setting, WorkspaceLeaf } from 'obsidian'
 import { OraculonView, ORACULON_VIEW_TYPE } from './OraculonView';
 import { OpenAI } from 'openai';
 
+// Add this enum at the top of the file
+export enum Workflow {
+	NewPage = 'New Page',
+	EditPage = 'Edit Page',
+	FindFixInconsistencies = 'Find and Fix Inconsistencies',
+	GenerateSessionOutline = 'Generate Session Outline',
+	IterateSessionOutline = 'Iterate on Session Outline'
+}
+
 interface OraculonSettings {
 	apiKey: string;
 	openaiOrganization: string;
@@ -28,7 +37,7 @@ export default class OraculonPlugin extends Plugin {
 
 		this.registerView(
 			ORACULON_VIEW_TYPE,
-			(leaf: WorkspaceLeaf) => new OraculonView(leaf)
+			(leaf: WorkspaceLeaf) => new OraculonView(leaf, this)
 		);
 
 		this.addRibbonIcon('dice', 'Open Oraculon', () => {
@@ -37,8 +46,8 @@ export default class OraculonPlugin extends Plugin {
 
 		this.addSettingTab(new OraculonSettingTab(this.app, this));
 
-		// Initialize OpenAI API only if the API key is present
-		if (this.settings.apiKey) {
+		// Update this check to include projectId
+		if (this.settings.apiKey && this.settings.openaiOrganization && this.settings.projectId) {
 			this.initializeOpenAI();
 		}
 	}
@@ -78,10 +87,10 @@ export default class OraculonPlugin extends Plugin {
 		}
 	}
 
-	async generateContent(instructions: string, pageContent: string, workflow: string) {
+	async executeWorkflow(workflow: Workflow, instructions: string, pageContent: string) {
 		if (!this.openai) {
-			if (!this.settings.apiKey || !this.settings.openaiOrganization) {
-				throw new Error('Please set both your OpenAI API key and Organization ID in the plugin settings before generating content.');
+			if (!this.settings.apiKey || !this.settings.openaiOrganization || !this.settings.projectId) {
+				throw new Error('Please set your plugin settings before executing a workflow.');
 			}
 			try {
 				await this.initializeOpenAI();
@@ -90,13 +99,51 @@ export default class OraculonPlugin extends Plugin {
 			}
 		}
 
+		switch (workflow) {
+			case Workflow.NewPage:
+				return this.newPageWorkflow(instructions);
+			case Workflow.EditPage:
+				return this.editPageWorkflow(instructions, pageContent);
+			case Workflow.FindFixInconsistencies:
+				return this.findFixInconsistenciesWorkflow(instructions, pageContent);
+			case Workflow.GenerateSessionOutline:
+				return this.generateSessionOutlineWorkflow(instructions, pageContent);
+			case Workflow.IterateSessionOutline:
+				return this.iterateSessionOutlineWorkflow(instructions, pageContent);
+			default:
+				throw new Error(`Unknown workflow: ${workflow}`);
+		}
+	}
+
+	private async newPageWorkflow(instructions: string) {
+		return this.generateContent('Create a new page with the following instructions:', instructions);
+	}
+
+	private async editPageWorkflow(instructions: string, pageContent: string) {
+		return this.generateContent('Edit the existing page content based on the following instructions:', `${instructions}\n\nExisting content:\n${pageContent}`);
+	}
+
+	private async findFixInconsistenciesWorkflow(instructions: string, pageContent: string) {
+		return "Find and fix inconsistencies workflow not implemented yet.";
+	}
+
+	private async generateSessionOutlineWorkflow(instructions: string, pageContent: string) {
+		return "Generate session outline workflow not implemented yet.";
+	}
+
+	private async iterateSessionOutlineWorkflow(instructions: string, pageContent: string) {
+		return "Iterate on session outline workflow not implemented yet.";
+	}
+
+	private async generateContent(systemPrompt: string, userPrompt: string) {
 		try {
 			const response = await this.openai?.chat.completions.create({
 				model: "gpt-4o",
 				messages: [
-					{ role: "system", content: `Workflow: ${workflow}\nInstructions: ${instructions}\nPage Content: ${pageContent}\n\nGenerated Content:` },
+					{ role: "system", content: `${systemPrompt}` },
+					{ role: "user", content: userPrompt },
 				],
-				max_tokens: 100,
+				max_tokens: 1000,
 			});
 			
 			const generatedContent = response?.choices[0].message.content?.trim();
@@ -105,20 +152,16 @@ export default class OraculonPlugin extends Plugin {
 				throw new Error('No content generated from the API');
 			}
 			return generatedContent;
-		} catch (error) {
-			console.error('Error generating content:', error);
-			if (error.response) {
-				// The request was made and the server responded with a status code
-				// that falls out of the range of 2xx
-				throw new Error(`API Error: ${error.response.status} - ${error.response.data.error.message}`);
-			} else if (error.request) {
-				// The request was made but no response was received
-				throw new Error('No response received from the API. Please check your internet connection.');
-			} else {
-				// Something happened in setting up the request that triggered an Error
-				throw new Error('Error setting up the request: ' + error.message);
+			} catch (error) {
+				console.error('Error generating content:', error);
+				if (error.response) {
+					throw new Error(`API Error: ${error.response.status} - ${error.response.data.error.message}`);
+				} else if (error.request) {
+					throw new Error('No response received from the API. Please check your internet connection.');
+				} else {
+					throw new Error('Error setting up the request: ' + error.message);
+				}
 			}
-		}
 	}
 
 	// Add a new method to initialize OpenAI

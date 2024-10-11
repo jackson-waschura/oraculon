@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf, Notice } from 'obsidian';
-import OraculonPlugin from './main';
+import OraculonPlugin, { Workflow } from './main';
 
 export const ORACULON_VIEW_TYPE = 'oraculon-view';
 
@@ -7,14 +7,14 @@ export class OraculonView extends ItemView {
     plugin: OraculonPlugin;
     content: string = '';
     instructions: string = '';
-    workflow: string = '';
+    workflow: Workflow = Workflow.NewPage;
     contentEl: HTMLElement;
     instructionsEl: HTMLTextAreaElement;
     workflowEl: HTMLSelectElement;
 
-    constructor(leaf: WorkspaceLeaf) {
+    constructor(leaf: WorkspaceLeaf, plugin: OraculonPlugin) {
         super(leaf);
-        this.plugin = this.app.plugins.getPlugin('oraculon') as OraculonPlugin;
+        this.plugin = plugin;
     }
 
     getViewType() {
@@ -36,19 +36,21 @@ export class OraculonView extends ItemView {
         workflowContainer.createEl('label', { text: 'Workflow:' });
         this.workflowEl = workflowContainer.createEl('select', { cls: 'oraculon-workflow' });
 
+        // Add workflow options using the Workflow enum
+        Object.values(Workflow).forEach(workflow => {
+            this.workflowEl.createEl('option', { value: workflow, text: workflow });
+        });
+
         const instructionsContainer = container.createEl('div', { cls: 'oraculon-input-container' });
         instructionsContainer.createEl('label', { text: 'Instructions:' });
-        this.instructionsEl = instructionsContainer.createEl('textarea', { cls: 'oraculon-instructions', placeholder: 'Enter your instructions here...' });
+        this.instructionsEl = instructionsContainer.createEl('textarea', { 
+            cls: 'oraculon-instructions glass-pane', 
+            placeholder: 'Enter your instructions here...' 
+        });
 
         const generateBtn = container.createEl('button', { text: 'Generate', cls: 'oraculon-generate-btn' });
 
-        this.contentEl = container.createEl('div', { cls: 'oraculon-content' });
-
-        // Add workflow options
-        const workflows = ['Create New Page', 'Edit Existing Page', 'Find and Fix Inconsistencies', 'Generate Session Outline', 'Iterate on Session Outline'];
-        workflows.forEach(workflow => {
-            this.workflowEl.createEl('option', { value: workflow, text: workflow });
-        });
+        this.contentEl = container.createEl('div', { cls: 'oraculon-content glass-pane' });
 
         generateBtn.addEventListener('click', this.handleGenerate.bind(this));
 
@@ -63,9 +65,9 @@ export class OraculonView extends ItemView {
                 const pageContent = await this.app.vault.read(activeFile);
                 this.content = pageContent;
                 this.instructions = this.instructionsEl.value;
-                this.workflow = this.workflowEl.value;
+                this.workflow = this.workflowEl.value as Workflow;
 
-                const generatedContent = await this.plugin.generateContent(this.instructions, this.content, this.workflow);
+                const generatedContent = await this.plugin.executeWorkflow(this.workflow, this.instructions, this.content);
                 if (generatedContent) {
                     this.contentEl.setText(generatedContent);
                 } else {
@@ -88,6 +90,9 @@ export class OraculonView extends ItemView {
                 padding: 16px;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
                 font-weight: 400;
+                display: flex;
+                flex-direction: column;
+                height: 100%;
             }
             .oraculon-header {
                 margin-bottom: 16px;
@@ -113,43 +118,62 @@ export class OraculonView extends ItemView {
             .oraculon-workflow {
                 width: 100%;
                 padding: 8px;
-                border: 1px solid var(--background-modifier-border);
-                border-radius: 4px;
-                height: 40px;
-                text-align: center;
+                border: 1px solid rgba(0, 0, 0, 0.2);
+                border-radius: 12px;
+                background: rgba(0, 0, 0, 0.1);
+                color: var(--text-normal);
                 font-weight: 400;
+                transition: all 0.3s ease;
+            }
+            .oraculon-workflow:hover,
+            .oraculon-workflow:focus {
+                box-shadow: 0 0 5px rgba(138, 43, 226, 0.5);
             }
             .oraculon-workflow option {
-                text-align: center;
-            }
-            .oraculon-instructions {
-                height: 100px;
-                resize: vertical;
-                font-weight: 400;
+                background: var(--background-primary);
             }
             .oraculon-generate-btn {
                 display: block;
                 width: 50%;
                 padding: 8px;
-                background-color: var(--interactive-accent);
-                color: var(--text-on-accent);
-                border: none;
-                border-radius: 4px;
+                background: rgba(0, 0, 0, 0.1);
+                border: 1px solid rgba(0, 0, 0, 0.2);
+                border-radius: 12px;
                 cursor: pointer;
                 margin: 0 auto 16px;
                 font-weight: 500;
+                color: var(--text-normal);
+                transition: all 0.3s ease;
             }
             .oraculon-generate-btn:hover {
-                background-color: var(--interactive-accent-hover);
+                box-shadow: 0 0 5px rgba(138, 43, 226, 0.5);
             }
-            .oraculon-content {
-                border: 1px solid var(--background-modifier-border);
-                border-radius: 4px;
+
+            .glass-pane {
+                border: 1px solid rgba(0, 0, 0, 0.2);
+                border-radius: 12px;
                 padding: 16px;
+                background: rgba(0, 0, 0, 0.1);
+                box-shadow: inset 4px 4px 4px rgba(0, 0, 0, 0.2);
+            }
+
+            .oraculon-instructions {
+                height: 140px;
+                resize: vertical;
+                font-weight: 400;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .oraculon-content {
+                flex-grow: 1;
                 min-height: 200px;
                 white-space: pre-wrap;
                 font-weight: 400;
+                overflow-y: auto;
+                margin-bottom: 12px;
             }
+
             .oraculon-workflow,
             .oraculon-instructions,
             .oraculon-generate-btn {
