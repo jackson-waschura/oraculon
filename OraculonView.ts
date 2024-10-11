@@ -124,10 +124,12 @@ export class OraculonView extends ItemView {
                 color: var(--text-normal);
                 font-weight: 400;
                 transition: all 0.3s ease;
+                line-height: 1.2;
+                height: auto;
             }
             .oraculon-workflow:hover,
             .oraculon-workflow:focus {
-                box-shadow: 0 0 5px rgba(138, 43, 226, 0.5);
+                box-shadow: 0 0 5px rgba(69, 139, 226, 0.5);
             }
             .oraculon-workflow option {
                 background: var(--background-primary);
@@ -135,7 +137,7 @@ export class OraculonView extends ItemView {
             .oraculon-generate-btn {
                 display: block;
                 width: 50%;
-                padding: 8px;
+                padding: 12px;
                 background: rgba(0, 0, 0, 0.1);
                 border: 1px solid rgba(0, 0, 0, 0.2);
                 border-radius: 12px;
@@ -144,9 +146,11 @@ export class OraculonView extends ItemView {
                 font-weight: 500;
                 color: var(--text-normal);
                 transition: all 0.3s ease;
+                line-height: 1.2;
+                height: auto;
             }
             .oraculon-generate-btn:hover {
-                box-shadow: 0 0 5px rgba(138, 43, 226, 0.5);
+                box-shadow: 0 0 5px rgba(69, 139, 226, 0.5);
             }
 
             .glass-pane {
