@@ -163,3 +163,5 @@ cython_debug/
 
 openai.cfg
 data.json
+
+node_modules/
