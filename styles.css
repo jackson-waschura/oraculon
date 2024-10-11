@@ -6,3 +6,8 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+.oraculon-status-container {
+    margin-bottom: 20px;
+    font-size: 1.2em;
+    font-weight: bold;
+}
