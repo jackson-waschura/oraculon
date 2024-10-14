@@ -25,6 +25,10 @@ export class OraculonView extends ItemView {
         return 'Oraculon';
     }
 
+    getIcon() {
+        return 'sparkle';
+    }
+
     async onOpen() {
         const container = this.containerEl.children[1];
         container.empty();
