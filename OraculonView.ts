@@ -1,16 +1,14 @@
 import { ItemView, WorkspaceLeaf, Notice } from 'obsidian';
 import OraculonPlugin, { Workflow } from './main';
+import { WorkflowComponent, WorkflowComponentFactory } from './WorkflowComponents';
 
 export const ORACULON_VIEW_TYPE = 'oraculon-view';
 
 export class OraculonView extends ItemView {
     plugin: OraculonPlugin;
-    content: string = '';
-    instructions: string = '';
-    workflow: Workflow = Workflow.NewPage;
-    contentEl: HTMLElement;
-    instructionsEl: HTMLTextAreaElement;
     workflowEl: HTMLSelectElement;
+    currentWorkflow: WorkflowComponent;
+    contentEl: HTMLElement;
 
     constructor(leaf: WorkspaceLeaf, plugin: OraculonPlugin) {
         super(leaf);
@@ -34,31 +32,35 @@ export class OraculonView extends ItemView {
         container.empty();
         container.addClass('oraculon-container');
 
-        const header = container.createEl('h2', { text: 'Oraculon', cls: 'oraculon-header' });
+        const header = container.createEl('h2', { text: 'Oraculon', cls: 'oraculon-header oraculon-gradient-text' });
 
-        const workflowContainer = container.createEl('div', { cls: 'oraculon-input-container' });
-        workflowContainer.createEl('label', { text: 'Workflow:' });
+        const workflowContainer = container.createEl('div', { cls: 'oraculon-workflow-container' });
+        const workflowLabel = workflowContainer.createEl('label', { text: 'Workflow:', cls: 'oraculon-workflow-label oraculon-gradient-text' });
         this.workflowEl = workflowContainer.createEl('select', { cls: 'oraculon-workflow' });
 
-        // Add workflow options using the Workflow enum
         Object.values(Workflow).forEach(workflow => {
             this.workflowEl.createEl('option', { value: workflow, text: workflow });
         });
 
-        const instructionsContainer = container.createEl('div', { cls: 'oraculon-input-container' });
-        instructionsContainer.createEl('label', { text: 'Instructions:' });
-        this.instructionsEl = instructionsContainer.createEl('textarea', { 
-            cls: 'oraculon-instructions glass-pane', 
-            placeholder: 'Enter your instructions here...' 
-        });
+        this.workflowEl.addEventListener('change', this.handleWorkflowChange.bind(this));
+
+        const componentContainer = container.createEl('div', { cls: 'oraculon-component-container' });
+        this.currentWorkflow = WorkflowComponentFactory.createComponent(Workflow.NewPage, componentContainer);
+        this.currentWorkflow.render();
 
         const generateBtn = container.createEl('button', { text: 'Generate', cls: 'oraculon-generate-btn' });
+        generateBtn.addEventListener('click', this.handleGenerate.bind(this));
 
         this.contentEl = container.createEl('div', { cls: 'oraculon-content glass-pane' });
 
-        generateBtn.addEventListener('click', this.handleGenerate.bind(this));
-
         this.addStyles();
+    }
+
+    handleWorkflowChange() {
+        const selectedWorkflow = this.workflowEl.value as Workflow;
+        const componentContainer = this.containerEl.querySelector('.oraculon-component-container') as HTMLElement;
+        this.currentWorkflow = WorkflowComponentFactory.createComponent(selectedWorkflow, componentContainer);
+        this.currentWorkflow.render();
     }
 
     async handleGenerate() {
@@ -66,12 +68,11 @@ export class OraculonView extends ItemView {
         if (activeFile) {
             this.contentEl.setText('Generating...');
             try {
-                const pageContent = await this.app.vault.read(activeFile);
-                this.content = pageContent;
-                this.instructions = this.instructionsEl.value;
-                this.workflow = this.workflowEl.value as Workflow;
+                const workflow = this.workflowEl.value as Workflow;
+                const instructions = this.currentWorkflow.getInstructions();
+                const content = this.currentWorkflow.getContent();
 
-                const generatedContent = await this.plugin.executeWorkflow(this.workflow, this.instructions, this.content);
+                const generatedContent = await this.plugin.executeWorkflow(workflow, instructions, content);
                 if (generatedContent) {
                     this.contentEl.setText(generatedContent);
                 } else {
@@ -97,30 +98,36 @@ export class OraculonView extends ItemView {
                 display: flex;
                 flex-direction: column;
                 height: 100%;
+                background: linear-gradient(to right, #00FFFF, #8A2BE2);
+                background-clip: text;
             }
+
+            .oraculon-gradient-text {
+                background: inherit;
+                background-clip: text;
+                color: transparent;
+            }
+
             .oraculon-header {
                 margin-bottom: 16px;
                 text-align: center;
                 font-weight: 600;
-                background: linear-gradient(to right, #00FFFF, #8A2BE2);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
             }
-            .oraculon-input-container {
+
+            .oraculon-workflow-container {
+                display: flex;
+                align-items: center;
                 margin-bottom: 16px;
             }
-            .oraculon-input-container label {
-                display: block;
-                margin-bottom: 8px;
+
+            .oraculon-workflow-label {
+                flex-shrink: 0;
+                margin-right: 10px;
                 font-weight: 500;
-                background: linear-gradient(to right, #00FFFF, #8A2BE2);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
             }
+
             .oraculon-workflow {
-                width: 100%;
+                flex-grow: 1;
                 padding: 8px;
                 border: 1px solid rgba(0, 0, 0, 0.2);
                 border-radius: 12px;
@@ -131,13 +138,16 @@ export class OraculonView extends ItemView {
                 line-height: 1.2;
                 height: auto;
             }
+
             .oraculon-workflow:hover,
             .oraculon-workflow:focus {
                 box-shadow: 0 0 5px rgba(69, 139, 226, 0.5);
             }
+
             .oraculon-workflow option {
                 background: var(--background-primary);
             }
+
             .oraculon-generate-btn {
                 display: block;
                 width: 50%;
@@ -153,6 +163,7 @@ export class OraculonView extends ItemView {
                 line-height: 1.2;
                 height: auto;
             }
+
             .oraculon-generate-btn:hover {
                 box-shadow: 0 0 5px rgba(69, 139, 226, 0.5);
             }
